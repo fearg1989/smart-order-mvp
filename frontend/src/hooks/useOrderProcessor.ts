@@ -13,7 +13,7 @@ interface UseOrderProcessorReturn {
 const OFFLINE_MOCK_RESULT: OrderResult = {
   orderId: 'a5a42903-2156-4560-82c4-9ee105d0e319',
   clientId: 'client-001',
-  clientName: 'Acme Corp',
+  clientName: 'ACME Industrial',
   items: [
     {
       productName: 'caja de papel A4',

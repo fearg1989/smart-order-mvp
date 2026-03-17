@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
     /** 422 — AI parsing failed or order invariants violated. */
     @ExceptionHandler(OrderProcessingException.class)
     public ResponseEntity<ErrorResponse> handleOrderProcessing(OrderProcessingException ex) {
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
                 .body(new ErrorResponse(ex.getMessage()));
     }
 

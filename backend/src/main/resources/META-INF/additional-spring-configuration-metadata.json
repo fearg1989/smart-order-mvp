@@ -1,0 +1,24 @@
+{
+  "properties": [
+    {
+      "name": "cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of allowed CORS origins."
+    },
+    {
+      "name": "api.key",
+      "type": "java.lang.String",
+      "description": "Shared API key required by X-API-Key authentication filter."
+    },
+    {
+      "name": "groq.api.key",
+      "type": "java.lang.String",
+      "description": "Groq API key used by the AI parser adapter."
+    },
+    {
+      "name": "groq.model",
+      "type": "java.lang.String",
+      "description": "Groq model id used for chat completions."
+    }
+  ]
+}

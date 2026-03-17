@@ -8,9 +8,19 @@ import json from 'highlight.js/lib/languages/json.js';
 SyntaxHighlighter.registerLanguage('json', json);
 
 const DEFAULT_CLIENT: Pick<OrderRequest, 'clientId' | 'clientName' | 'clientEmail'> = {
-  clientId: 'client-001',
-  clientName: 'Acme Corp',
-  clientEmail: 'orders@acme.com',
+  clientId: 'client-web',
+  clientName: 'Web Client',
+  clientEmail: 'noreply@smart-order.local',
+};
+
+const BILLING_MARKER_REGEX = /\b(?:bill\s*to|billing\s*to|invoice\s*to|facturar\s*a(?:\s+nombre\s+de)?|factura\s*a(?:\s+nombre\s+de)?|a\s+nombre\s+de)\b/i;
+const BILLING_LINE_REGEX = /(?:^|\n)\s*(?:bill\s*to|billing\s*to|invoice\s*to|facturar\s*a(?:\s+nombre\s+de)?|factura\s*a(?:\s+nombre\s+de)?|a\s+nombre\s+de)\s*[:\-]?\s*(.+)\s*$/im;
+
+const extractBillingClientName = (text: string): string | null => {
+  const match = text.match(BILLING_LINE_REGEX);
+  if (!match?.[1]) return null;
+  const normalized = match[1].trim().replace(/[\s.;,]+$/, '');
+  return normalized || null;
 };
 
 const formatEur = (amount: number) =>
@@ -24,19 +34,19 @@ const EXAMPLES = [
     mode: 'online',
     label: "Normal",
     icon: "📝",
-    text: "Hola equipo, necesitamos para esta semana:\n- 12 cajas de papel A4 a €14.50 cada una\n- 30 bolígrafos azules a €1.80 cada uno\n- 6 cuadernos tamaño carta a €4.25 cada uno\n- 3 engrapadoras a €9.90 cada una\nFacturar a nombre de ACME Industrial.\nPor favor confirmar disponibilidad y tiempo de entrega."
+    text: "Hola Antonio, te paso el pedido de reposición para la tienda de Valencia de la campaña de primavera:\n- 24 pares Bota Chelsea Piel (Ref: BT-09) - Surtido de tallas 38 al 42\n- 12 pares Zapato Salón Negro (Ref: ZS-01) - Tallas 37 y 38\n- 50 Cinturones Cuero Básicos (Ref: CIN-05)\nEnvíalo por SEUR como siempre. Facturar a Calzados Levante S.L."
   },
   {
     mode: 'online',
     label: "WhatsApp Caótico",
     icon: "💬",
-    text: "bro necesito para manana urgente:\n4 cj papel a4 (el de siempre) 14.5 c/u\n12 lapiceros azul 1.2\n2 grapadoras de oficina 8\nsi no hay una marca, manda la equivalente.\nfactura: Prueba Local SPA, rut despues te lo paso"
+    text: "Paco pasame urgente para el semillero 15 sacos del abono nitrato 25kg (el barato de la otra vez), 5 palets de cajas de carton para la pera y 2 rollos de plastico de invernadero. apuntamelo a la cuenta de la finca sur, el NIF ya lo teneis. avisame cuando el camion salga q no hay nadie en la nave"
   },
   {
     mode: 'online',
-    label: "Inglés",
+    label: "Exportación (Inglés)",
     icon: "🌍",
-    text: "Hello team, please process this purchase order:\n- 8 packs of A4 copy paper at €13.90 each\n- 15 black gel pens at €2.10 each\n- 5 desk organizers at €7.50 each\nBill to: Northwind Trading.\nPlease confirm stock and ETA."
+    text: "Dear sales team, please process the following B2B order for our London boutiques:\n- 120 units of 'Oxford Classic' men's shoes (SKU: OX-100), mixed sizes UK 8 to UK 11\n- 45 units of Leather Tote Bags (SKU: BAG-LT-Brown)\nBill to: UK Fashion Retailers Ltd.\nPlease apply our standard 15% wholesale discount and confirm ETA."
   },
   {
     mode: 'online',
@@ -60,6 +70,7 @@ export default function SmartOrder() {
   const [rawText, setRawText] = useState('');
   const [useOfflineMode, setUseOfflineMode] = useState(false);
   const { result, isLoading, error, processOrder, processOrderOffline, reset } = useOrderProcessor();
+  const hasBillingMarker = BILLING_MARKER_REGEX.test(rawText);
 
   const handleReset = () => {
     setRawText('');
@@ -75,7 +86,12 @@ export default function SmartOrder() {
       return;
     }
 
-    await processOrder({ rawText, ...DEFAULT_CLIENT });
+    const inferredClientName = extractBillingClientName(rawText);
+    await processOrder({
+      rawText,
+      ...DEFAULT_CLIENT,
+      clientName: inferredClientName ?? DEFAULT_CLIENT.clientName,
+    });
   };
 
   return (

@@ -23,21 +23,17 @@ RUN mvn package -DskipTests -q
 # ─────────────────────────────────────────────
 # STAGE 2 — Runtime
 # Minimal JRE image — no JDK, no Maven, no build tools in production.
-# eclipse-temurin:21-jre-alpine keeps the image under ~200 MB.
+# Distroless runtime keeps the attack surface and CVE count lower.
 # ─────────────────────────────────────────────
-FROM eclipse-temurin:21-jre-alpine AS runtime
-
-# Non-root user for security best practices.
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
+FROM gcr.io/distroless/java21-debian12:nonroot AS runtime
 
 WORKDIR /app
 
 # Copy only the executable jar from the builder stage.
-COPY --from=builder /build/target/*.jar app.jar
+COPY --from=builder /build/target/*.jar /app/app.jar
 
 # Expose the Spring Boot default port.
 EXPOSE 8080
 
 # Use exec form to make the JVM the PID 1 (proper signal handling / graceful shutdown).
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

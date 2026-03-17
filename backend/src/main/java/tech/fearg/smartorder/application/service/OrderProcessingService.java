@@ -7,6 +7,10 @@ import tech.fearg.smartorder.application.port.out.SaveOrderPort;
 import tech.fearg.smartorder.domain.model.Client;
 import tech.fearg.smartorder.domain.model.Order;
 
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Application Service — orchestrates the use case flow.
  *
@@ -21,6 +25,11 @@ import tech.fearg.smartorder.domain.model.Order;
  */
 public class OrderProcessingService implements ProcessUnstructuredOrderUseCase {
 
+    private static final List<Pattern> BILLING_NAME_PATTERNS = List.of(
+            Pattern.compile("(?im)^\\s*(?:bill\\s*to|billing\\s*to|invoice\\s*to)\\s*[:\\-]?\\s*(.+?)\\s*$"),
+            Pattern.compile("(?im)^\\s*(?:facturar\\s*a(?:\\s+nombre\\s+de)?|factura\\s*a(?:\\s+nombre\\s+de)?|a\\s+nombre\\s+de)\\s*[:\\-]?\\s*(.+?)\\s*$")
+    );
+
     private final AiOrderParserPort aiOrderParserPort;
     private final SaveOrderPort saveOrderPort;
 
@@ -31,14 +40,57 @@ public class OrderProcessingService implements ProcessUnstructuredOrderUseCase {
 
     @Override
     public Order process(ProcessOrderCommand command) {
+        String resolvedClientName = resolveClientName(command);
+
         Client client = new Client(
                 command.getClientId(),
-                command.getClientName(),
+            resolvedClientName,
                 command.getClientEmail()
         );
 
         Order parsedOrder = aiOrderParserPort.parse(command.getRawText(), client);
 
         return saveOrderPort.save(parsedOrder);
+    }
+
+    private String resolveClientName(ProcessOrderCommand command) {
+        String extractedFromText = extractClientNameFromText(command.getRawText());
+        if (extractedFromText != null && !extractedFromText.isBlank()) {
+            return extractedFromText;
+        }
+
+        if (command.getClientName() != null && !command.getClientName().isBlank()) {
+            return command.getClientName().trim();
+        }
+
+        return command.getClientId();
+    }
+
+    private String extractClientNameFromText(String rawText) {
+        if (rawText == null || rawText.isBlank()) {
+            return null;
+        }
+
+        for (Pattern pattern : BILLING_NAME_PATTERNS) {
+            Matcher matcher = pattern.matcher(rawText);
+            if (matcher.find()) {
+                return sanitizeClientName(matcher.group(1));
+            }
+        }
+
+        return null;
+    }
+
+    private String sanitizeClientName(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value.trim().replaceAll("[\\s.;,]+$", "");
+        if (normalized.isEmpty()) {
+            return null;
+        }
+
+        return normalized.length() > 100 ? normalized.substring(0, 100).trim() : normalized;
     }
 }
