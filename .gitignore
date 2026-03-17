@@ -1,0 +1,17 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Build artifacts
+backend/target/
+frontend/dist/
+frontend/node_modules/
+frontend/.astro/
+
+# Local archives and OS/editor noise
+*.zip
+.DS_Store
