@@ -14,12 +14,15 @@ const DEFAULT_CLIENT: Pick<OrderRequest, 'clientId' | 'clientName' | 'clientEmai
 };
 
 const BILLING_MARKER_REGEX = /\b(?:bill\s*to|billing\s*to|invoice\s*to|facturar\s*a(?:\s+nombre\s+de)?|factura\s*a(?:\s+nombre\s+de)?|a\s+nombre\s+de)\b/i;
-const BILLING_LINE_REGEX = /(?:^|\n)\s*(?:bill\s*to|billing\s*to|invoice\s*to|facturar\s*a(?:\s+nombre\s+de)?|factura\s*a(?:\s+nombre\s+de)?|a\s+nombre\s+de)\s*[:\-]?\s*(.+)\s*$/im;
+const BILLING_LINE_REGEX = /(?:bill\s*to|billing\s*to|invoice\s*to|facturar\s*a(?:\s+nombre\s+de)?|factura\s*a(?:\s+nombre\s+de)?|a\s+nombre\s+de)\s*[:\-]?\s*([^\n\r]+)/i;
 
 const extractBillingClientName = (text: string): string | null => {
   const match = text.match(BILLING_LINE_REGEX);
   if (!match?.[1]) return null;
-  const normalized = match[1].trim().replace(/[\s.;,]+$/, '');
+  const normalized = match[1]
+    .trim()
+    .replace(/\s+(?:please|por\s+favor|thanks|gracias)\b.*$/i, '')
+    .replace(/[\s.;,]+$/, '');
   return normalized || null;
 };
 
@@ -34,19 +37,19 @@ const EXAMPLES = [
     mode: 'online',
     label: "Normal",
     icon: "📝",
-    text: "Hola Antonio, te paso el pedido de reposición para la tienda de Valencia de la campaña de primavera:\n- 24 pares Bota Chelsea Piel (Ref: BT-09) - Surtido de tallas 38 al 42\n- 12 pares Zapato Salón Negro (Ref: ZS-01) - Tallas 37 y 38\n- 50 Cinturones Cuero Básicos (Ref: CIN-05)\nEnvíalo por SEUR como siempre. Facturar a Calzados Levante S.L."
+    text: "Hola Antonio, te paso el pedido de reposición para la tienda de Valencia de la campaña de primavera:\n- 24 pares Bota Chelsea Piel (Ref: BT-09) a 45.50€ el par - Surtido de tallas 38 al 42\n- 12 pares Zapato Salón Negro (Ref: ZS-01) a 38.00€ c/u - Tallas 37 y 38\n- 50 Cinturones Cuero Básicos (Ref: CIN-05) a 12.50€ la unidad\nEnvíalo por SEUR como siempre. Facturar a Calzados Levante S.L."
   },
   {
     mode: 'online',
     label: "WhatsApp Caótico",
     icon: "💬",
-    text: "Paco pasame urgente para el semillero 15 sacos del abono nitrato 25kg (el barato de la otra vez), 5 palets de cajas de carton para la pera y 2 rollos de plastico de invernadero. apuntamelo a la cuenta de la finca sur, el NIF ya lo teneis. avisame cuando el camion salga q no hay nadie en la nave"
+    text: "Paco pasame urgente para el semillero 15 sacos del abono nitrato 25kg (el barato de la otra vez) a 18.20 c/u, 5 palets de cajas de carton para la pera a 120 pavos el palet y 2 rollos de plastico de invernadero a 85. apuntamelo a la cuenta de la finca sur, el NIF ya lo teneis. avisame cuando el camion salga q no hay nadie en la nave"
   },
   {
     mode: 'online',
     label: "Exportación (Inglés)",
     icon: "🌍",
-    text: "Dear sales team, please process the following B2B order for our London boutiques:\n- 120 units of 'Oxford Classic' men's shoes (SKU: OX-100), mixed sizes UK 8 to UK 11\n- 45 units of Leather Tote Bags (SKU: BAG-LT-Brown)\nBill to: UK Fashion Retailers Ltd.\nPlease apply our standard 15% wholesale discount and confirm ETA."
+    text: "Dear sales team, please process the following B2B order for our London boutiques:\n- 120 units of 'Oxford Classic' men's shoes (SKU: OX-100) at €55.00 each, mixed sizes UK 8 to UK 11\n- 45 units of Leather Tote Bags (SKU: BAG-LT-Brown) at €32.50 each\nBill to: UK Fashion Retailers Ltd.\nPlease apply our standard 15% wholesale discount and confirm ETA."
   },
   {
     mode: 'online',

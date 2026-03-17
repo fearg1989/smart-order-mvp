@@ -26,8 +26,8 @@ import java.util.regex.Pattern;
 public class OrderProcessingService implements ProcessUnstructuredOrderUseCase {
 
     private static final List<Pattern> BILLING_NAME_PATTERNS = List.of(
-            Pattern.compile("(?im)^\\s*(?:bill\\s*to|billing\\s*to|invoice\\s*to)\\s*[:\\-]?\\s*(.+?)\\s*$"),
-            Pattern.compile("(?im)^\\s*(?:facturar\\s*a(?:\\s+nombre\\s+de)?|factura\\s*a(?:\\s+nombre\\s+de)?|a\\s+nombre\\s+de)\\s*[:\\-]?\\s*(.+?)\\s*$")
+        Pattern.compile("(?im)(?:bill\\s*to|billing\\s*to|invoice\\s*to)\\s*[:\\-]?\\s*([^\\r\\n]+)"),
+        Pattern.compile("(?im)(?:facturar\\s*a(?:\\s+nombre\\s+de)?|factura\\s*a(?:\\s+nombre\\s+de)?|a\\s+nombre\\s+de)\\s*[:\\-]?\\s*([^\\r\\n]+)")
     );
 
     private final AiOrderParserPort aiOrderParserPort;
@@ -87,6 +87,7 @@ public class OrderProcessingService implements ProcessUnstructuredOrderUseCase {
         }
 
         String normalized = value.trim().replaceAll("[\\s.;,]+$", "");
+        normalized = normalized.replaceAll("(?i)\\s+(?:please|por\\s+favor|thanks|gracias)\\b.*$", "").trim();
         if (normalized.isEmpty()) {
             return null;
         }

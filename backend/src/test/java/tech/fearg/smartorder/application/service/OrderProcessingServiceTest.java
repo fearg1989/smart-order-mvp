@@ -48,6 +48,22 @@ class OrderProcessingServiceTest {
     }
 
     @Test
+    void shouldUseSpanishBillingNameWhenMarkerAppearsMidLine() {
+        OrderProcessingService service = new OrderProcessingService(new FakeParserPort(), new FakeSavePort());
+
+        ProcessOrderCommand command = ProcessOrderCommand.builder()
+                .rawText("Envíalo por SEUR como siempre. Facturar a Calzados Levante S.L.")
+                .clientId("client-001")
+                .clientName("Web Client")
+                .clientEmail("noreply@smart-order.local")
+                .build();
+
+        Order order = service.process(command);
+
+        assertEquals("Calzados Levante S.L", order.getClient().getName());
+    }
+
+    @Test
     void shouldKeepProvidedClientNameWhenNoBillingMarkerExists() {
         OrderProcessingService service = new OrderProcessingService(new FakeParserPort(), new FakeSavePort());
 
