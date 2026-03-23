@@ -65,6 +65,53 @@ graph LR
     D4 --- A2
 ```
 
+### Flujo de la solicitud
+
+Recorrido completo de una petición desde el navegador hasta la base de datos y de vuelta:
+
+| # | Capa | Clase / Componente | Qué ocurre |
+|---|------|--------------------|------------|
+| 1 | **Frontend** | `SmartOrder.tsx` → `useOrderProcessor.ts` | El usuario escribe el pedido en texto libre y hace clic en enviar. El hook construye el JSON y lanza un `fetch` hacia el backend. |
+| 2 | **Infra – Seguridad** | `ApiKeyAuthFilter` | Spring Security intercepta la petición antes de llegar al controlador y valida el header `X-API-Key`. Si es inválida, responde `401`. |
+| 3 | **Infra – Rate Limit** | `RateLimitInterceptor` | Verifica el bucket de tokens por IP (Bucket4j). Si se supera el límite, responde `429`. |
+| 4 | **Infra – Adapter In** | `OrderController` | Recibe `POST /api/v1/orders/ai-ingest`. Delega la deserialización a Spring MVC. |
+| 5 | **Infra – DTO** | `OrderRequest` | Bean Validation (`@Valid`) aplica las restricciones del record: `rawText` obligatorio y ≤ 4 000 chars, `clientId` obligatorio, `clientEmail` formato email. Si falla, responde `400`. |
+| 6 | **Infra – Adapter In** | `OrderController` | Con el DTO válido, construye un `ProcessOrderCommand` y llama al puerto de entrada `ProcessUnstructuredOrderUseCase.process(command)`. |
+| 7 | **Application** | `OrderProcessingService` | Implementación del puerto de entrada. Resuelve el nombre de cliente (del texto libre o del DTO), crea el value object `Client` y orquesta los puertos de salida. |
+| 8 | **Application → Infra Out** | `AiOrderParserPort` → `GroqAiOrderParserAdapter` | El servicio llama al puerto de salida IA. El adapter construye el prompt, invoca la API de Groq vía `RestClient`, deserializa la respuesta en `ParsedOrderDto` y devuelve un objeto `Order` con sus `OrderItem`. |
+| 9 | **Application → Infra Out** | `SaveOrderPort` → `OrderPersistenceAdapter` | El servicio llama al puerto de salida de persistencia. El adapter convierte el dominio a `OrderJpaEntity` (via `OrderMapper`) y persiste con `OrderJpaRepository` (Spring Data JPA → PostgreSQL). |
+| 10 | **Domain** | `Order`, `OrderItem`, `Client`, `OrderStatus` | Los modelos de dominio puro viajan entre capas sin anotaciones de framework. |
+| 11 | **Infra – Adapter In** | `OrderController` | Recibe el `Order` persistido y lo convierte a `OrderResponse` con `OrderResponse.fromDomain(order)`. |
+| 12 | **Frontend** | `useOrderProcessor.ts` → `SmartOrder.tsx` | El hook recibe la respuesta `201 Created` con el JSON de la orden y actualiza el estado de React para mostrar el resultado al usuario. |
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario (browser)
+    participant FE as Frontend<br/>SmartOrder.tsx / useOrderProcessor
+    participant SEC as ApiKeyAuthFilter +<br/>RateLimitInterceptor
+    participant CTL as OrderController
+    participant DTO as OrderRequest<br/>(Bean Validation)
+    participant SVC as OrderProcessingService
+    participant AI as GroqAiOrderParserAdapter
+    participant DB as OrderPersistenceAdapter
+
+    U->>FE: Clic "Enviar pedido"
+    FE->>SEC: POST /api/v1/orders/ai-ingest (X-API-Key)
+    SEC-->>FE: 401 si API key inválida
+    SEC-->>FE: 429 si rate limit superado
+    SEC->>CTL: petición autorizada
+    CTL->>DTO: @Valid deserializa OrderRequest
+    DTO-->>CTL: 400 si validación falla
+    CTL->>SVC: process(ProcessOrderCommand)
+    SVC->>AI: parse(rawText, client)
+    AI-->>SVC: Order (items parseados por Groq)
+    SVC->>DB: save(order)
+    DB-->>SVC: Order persistida (PostgreSQL)
+    SVC-->>CTL: Order
+    CTL-->>FE: 201 Created (OrderResponse)
+    FE-->>U: Muestra orden estructurada
+```
+
 ### Flujo principal de procesamiento
 
 ```mermaid
